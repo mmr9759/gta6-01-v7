@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VELMARA: Streets of Gold</title>
+<style>
+  :root { --gold:#f5c542; --gold-dim:#c9a227; --ink:#0d0f14; --panel:rgba(10,12,18,.82); --line:rgba(245,197,66,.45); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { width:100%; height:100%; background:#07080c; overflow:hidden; font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif; color:#f2ead8; }
+  #wrap { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(120% 100% at 50% 0%, #141824 0%, #07080c 70%); }
+  #stage { position:relative; width:1280px; height:720px; max-width:100vw; max-height:100vh; }
+  #game { display:block; width:1280px; height:720px; background:#1d2b1f; border:1px solid #2a2f3a; }
+  .vignette { position:absolute; inset:0; pointer-events:none; background:radial-gradient(115% 100% at 50% 45%, transparent 62%, rgba(0,0,0,.42) 100%); }
+  .hud { position:absolute; pointer-events:none; z-index:5; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; backdrop-filter:blur(2px); }
+  #hud-tl { top:12px; left:12px; padding:8px 12px; min-width:210px; }
+  #cash { font-size:22px; font-weight:800; color:var(--gold); letter-spacing:.5px; }
+  #cash small { font-size:11px; color:#cbbf9a; font-weight:600; display:block; letter-spacing:2px; }
+  #stars { font-size:19px; letter-spacing:3px; margin-top:2px; color:#ffd94d; text-shadow:0 0 8px rgba(255,60,60,.8); }
+  #stars .off { color:#3a3f4d; text-shadow:none; }
+  #healthbar { height:8px; background:#262b36; border-radius:5px; margin-top:6px; overflow:hidden; }
+  #healthfill { height:100%; width:100%; background:linear-gradient(90deg,#37d67a,#a5e34a); border-radius:5px; }
+  #hud-mission { top:12px; left:50%; transform:translateX(-50%); padding:8px 16px; text-align:center; max-width:520px; }
+  #m-title { font-size:13px; font-weight:800; letter-spacing:2px; color:var(--gold); text-transform:uppercase; }
+  #m-obj { font-size:13px; color:#efe6cc; margin-top:2px; }
+  #m-sub { font-size:11px; color:#b9ad8d; margin-top:1px; }
+  #hud-tr { top:12px; right:12px; text-align:right; }
+  #clock { font-size:20px; font-weight:800; color:#fff; text-shadow:0 1px 4px #000; }
+  #district { font-size:12px; color:#ffe9a8; letter-spacing:1px; }
+  #radio { font-size:11px; color:#9fd8ff; margin-top:2px; }
+  #minimap { margin-top:6px; border:1px solid var(--line); border-radius:8px; background:#0a0d12; }
+  #hud-bl { bottom:12px; left:12px; padding:6px 10px; font-size:11px; color:#cfc4a4; line-height:1.5; }
+  #hud-bl b { color:var(--gold); }
+  #hud-br { bottom:12px; right:12px; text-align:right; padding:8px 12px; }
+  #speed { font-size:30px; font-weight:800; color:#fff; line-height:1; }
+  #speed small { font-size:11px; color:#cbbf9a; font-weight:600; }
+  #carname { font-size:12px; color:#ffe9a8; }
+  #toast { bottom:86px; left:50%; transform:translateX(-50%); padding:8px 18px; font-size:14px; font-weight:700; color:#fff; background:rgba(20,16,4,.88); border:1px solid var(--line); border-radius:20px; opacity:0; transition:opacity .25s; white-space:nowrap; }
+  #compass { top:12px; left:50%; transform:translateX(-50%); margin-top:102px; font-size:12px; letter-spacing:6px; color:#ffe9a8; text-shadow:0 1px 3px #000; }
+  .overlay { position:absolute; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; background:rgba(5,6,10,.55); }
+  .card { width:640px; max-width:92%; background:linear-gradient(160deg,#12141d,#0a0c12); border:1px solid var(--line); border-radius:16px; padding:28px 34px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+  .card h1 { font-size:44px; letter-spacing:4px; color:var(--gold); text-shadow:0 0 24px rgba(245,197,66,.35); }
+  .card h1 span { display:block; font-size:15px; letter-spacing:8px; color:#fff; margin-top:2px; }
+  .card h2 { font-size:26px; color:var(--gold); letter-spacing:2px; margin-bottom:8px; }
+  .card p { font-size:14px; line-height:1.6; color:#ddd2b2; margin:8px 0; }
+  .card .keys { font-size:12px; color:#b7ab8b; line-height:1.9; text-align:left; display:inline-block; margin-top:10px; }
+  .card .keys b { color:var(--gold); display:inline-block; min-width:118px; }
+  .btn { display:inline-block; margin:14px 6px 0; padding:11px 26px; border-radius:9px; border:1px solid var(--gold); background:linear-gradient(180deg,#f7cd55,#c9961a); color:#171205; font-weight:800; font-size:15px; letter-spacing:1px; cursor:pointer; }
+  .btn.ghost { background:transparent; color:var(--gold); }
+  .btn:hover { filter:brightness(1.12); }
+  .hidden { display:none !important; }
+  #shop-list, #choice-list { text-align:left; margin:10px auto 0; max-width:460px; }
+  .shop-item { display:flex; justify-content:space-between; gap:12px; padding:9px 12px; border:1px solid #2c3242; border-radius:8px; margin:6px 0; font-size:14px; cursor:pointer; }
+  .shop-item:hover { border-color:var(--gold); background:rgba(245,197,66,.08); }
+  .shop-item .price { color:var(--gold); font-weight:800; }
+  #brief-text { font-size:15px; }
+  #finale-gold { font-size:52px; color:var(--gold); }
+  #dead-reason { color:#ff8f8f; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
+  <canvas id="game" width="1280" height="720"></canvas>
+  <div class="vignette"></div>
+
+  <div class="hud panel" id="hud-tl">
+    <div id="cash"><small>VELMARA &middot; CASH</small>$<span id="cash-v">0</span></div>
+    <div id="stars"></div>
+    <div id="healthbar"><div id="healthfill"></div></div>
+  </div>
+  <div class="hud panel" id="hud-mission">
+    <div id="m-title">VELMARA</div>
+    <div id="m-obj">Press ENTER to begin</div>
+    <div id="m-sub"></div>
+  </div>
+  <div class="hud" id="hud-tr">
+    <div id="clock">08:00</div>
+    <div id="district">GOLD ROW</div>
+    <div id="radio">RADIO: VELMARA FM &middot; R for station</div>
+    <canvas id="minimap" width="220" height="160"></canvas>
+  </div>
+  <div class="hud" id="compass">N &nbsp;&middot;&nbsp; NE &nbsp;&middot;&nbsp; E &nbsp;&middot;&nbsp; SE &nbsp;&middot;&nbsp; S &nbsp;&middot;&nbsp; SW &nbsp;&middot;&nbsp; W &nbsp;&middot;&nbsp; NW</div>
+  <div class="hud panel" id="hud-bl"><b>WASD</b> drive / walk &nbsp; <b>E</b> enter car &nbsp; <b>F</b> fight / shoot &nbsp; <b>G</b> GPS autopilot &nbsp; <b>Space</b> brake &nbsp; <b>T</b> taxi &nbsp; <b>R</b> radio &nbsp; <b>P</b> pause</div>
+  <div class="hud panel" id="hud-br"><div id="speed">0<small> MPH</small></div><div id="carname">ON FOOT</div></div>
+  <div class="hud" id="toast"></div>
+
+  <div class="overlay" id="title-screen">
+    <div class="card">
+      <h1>VELMARA<span>STREETS OF GOLD</span></h1>
+      <p>Seven districts. Twelve jobs. One crown. Riko Vale came back to Velmara with nothing but a stolen set of keys &mdash; and a city paved in gold to take.</p>
+      <p>Steal cars, run missions for Marisol and the Broker, outrun the Velmara PD, collect the 24 lost gold coins, and own every street from Old Harbor to the Neon Mile.</p>
+      <div class="keys">
+        <div><b>W A S D / Arrows</b> drive &amp; walk</div>
+        <div><b>E</b> enter / steal car &nbsp;&nbsp; <b>Space</b> handbrake</div>
+        <div><b>F / Click</b> fight &amp; shoot &nbsp;&nbsp; <b>G</b> GPS autopilot to mission</div>
+        <div><b>T</b> pick up taxi fares &nbsp;&nbsp; <b>R</b> change radio &nbsp;&nbsp; <b>P</b> pause</div>
+      </div>
+      <div>
+        <button class="btn" id="btn-start">START ENGINE</button>
+        <button class="btn ghost" id="btn-continue">CONTINUE</button>
+      </div>
+      <p style="font-size:11px;color:#8f8570">Progress saves automatically to this browser. Headphones on &mdash; three radio stations, live.</p>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="brief-screen">
+    <div class="card">
+      <h2 id="brief-title">MISSION</h2>
+      <p id="brief-text"></p>
+      <p id="brief-reward" style="color:var(--gold);font-weight:800"></p>
+      <button class="btn" id="btn-brief">LET'S GO</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="choice-screen">
+    <div class="card">
+      <h2>CHOOSE YOUR SIDE</h2>
+      <p>Marisol needs a clean courier run. The Broker wants a vault hit &mdash; loud, rich, and very wanted. Both pay. Only one shapes who Riko becomes.</p>
+      <div id="choice-list">
+        <div class="shop-item" id="choice-a"><span><b>1 &mdash; Marisol:</b> The Clean Run &middot; deliver medicine, no heat</span><span class="price">$1,200</span></div>
+        <div class="shop-item" id="choice-b"><span><b>2 &mdash; The Broker:</b> The Vault Hit &middot; smash, grab, 3 stars</span><span class="price">$3,500</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="shop-screen">
+    <div class="card">
+      <h2 id="shop-title">SHOP</h2>
+      <p id="shop-sub"></p>
+      <div id="shop-list"></div>
+      <button class="btn ghost" id="btn-shop-close">LEAVE (ESC)</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="pause-screen">
+    <div class="card">
+      <h2>PAUSED</h2>
+      <p id="pause-stats"></p>
+      <button class="btn" id="btn-resume">RESUME</button>
+      <button class="btn ghost" id="btn-restart">RESTART STORY</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="dead-screen">
+    <div class="card">
+      <h2>BUSTED / WASTED</h2>
+      <p id="dead-reason">Riko got caught. The streets keep the gold &mdash; this time.</p>
+      <p>Hospital bill: $250 &middot; you keep your cars and progress.</p>
+      <button class="btn" id="btn-revive">BACK ON THE STREETS</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="finale-screen">
+    <div class="card">
+      <h2 id="finale-gold">STREETS OF GOLD</h2>
+      <p id="finale-text">Riko Vale owns Velmara. Every district, every crew, every coin &mdash; gold.</p>
+      <p id="finale-stats" style="color:var(--gold);font-weight:700"></p>
+      <button class="btn" id="btn-finale">KEEP DRIVING (FREE ROAM)</button>
+    </div>
+  </div>
+</div></div>
+<script src="src/audio.js"></script>
+<script src="src/world.js"></script>
+<script src="src/missions.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
